@@ -2,9 +2,9 @@
 
 Usage:
 
-    go get -u rsc.io/2fa
+    go get -u github.com/hSATAC/2fa
 
-    2fa -add [-7] [-8] [-hotp] name
+    2fa -add [-7] [-8] name
     2fa -list
     2fa name
 
@@ -13,8 +13,7 @@ prints a prompt to standard error and reads a two-factor key from standard
 input. Two-factor keys are short case-insensitive strings of letters A-Z and
 digits 2-7.
 
-By default the new key generates time-based (TOTP) authentication codes; the
-`-hotp` flag makes the new key generate counter-based (HOTP) codes instead.
+The new key generates time-based (TOTP) authentication codes.
 
 By default the new key generates 6-digit codes; the `-7` and `-8` flags select
 7- and 8-digit codes instead.
@@ -24,14 +23,11 @@ By default the new key generates 6-digit codes; the `-7` and `-8` flags select
 `2fa name` prints a two-factor authentication code from the key with the
 given name.
 
-With no arguments, `2fa` prints two-factor authentication codes from all
-known time-based keys.
-
 The default time-based authentication codes are derived from a hash of the
 key and the current time, so it is important that the system clock have at
 least one-minute accuracy.
 
-The keychain is stored unencrypted in the text file `$HOME/.2fa`.
+The keychain is stored macOS keychain.
 
 ## Example
 

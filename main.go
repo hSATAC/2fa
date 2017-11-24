@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	2fa -add [-7] [-8] [-hotp] name
+//	2fa -add [-7] [-8] name
 //	2fa -list
 //	2fa name
 //
@@ -14,8 +14,7 @@
 // It prints a prompt to standard error and reads a two-factor key from standard input.
 // Two-factor keys are short case-insensitive strings of letters A-Z and digits 2-7.
 //
-// By default the new key generates time-based (TOTP) authentication codes;
-// the -hotp flag makes the new key generate counter-based (HOTP) codes instead.
+// The new key generates time-based (TOTP) authentication codes.
 //
 // By default the new key generates 6-digit codes; the -7 and -8 flags select
 // 7- and 8-digit codes instead.
@@ -32,7 +31,7 @@
 // the key and the current time, so it is important that the system clock have
 // at least one-minute accuracy.
 //
-// The keychain is stored unencrypted in the text file $HOME/.2fa.
+// The keychain is stored macOS keychain.
 //
 // Example
 //
@@ -62,35 +61,32 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base32"
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/keybase/go-keychain"
 )
 
 var (
 	flagAdd  = flag.Bool("add", false, "add a key")
 	flagList = flag.Bool("list", false, "list keys")
-	flagHotp = flag.Bool("hotp", false, "add key as HOTP (counter-based) key")
 	flag7    = flag.Bool("7", false, "generate 7-digit code")
 	flag8    = flag.Bool("8", false, "generate 8-digit code")
 )
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage:\n")
-	fmt.Fprintf(os.Stderr, "\t2fa -add [-7] [-8] [-hotp] keyname\n")
+	fmt.Fprintf(os.Stderr, "\t2fa -add [-7] [-8] keyname\n")
 	fmt.Fprintf(os.Stderr, "\t2fa -list\n")
 	fmt.Fprintf(os.Stderr, "\t2fa keyname\n")
 	os.Exit(2)
@@ -102,7 +98,7 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	k := readKeychain(filepath.Join(os.Getenv("HOME"), ".2fa"))
+	k := readKeychain()
 
 	if *flagList {
 		if flag.NArg() != 0 {
@@ -112,7 +108,7 @@ func main() {
 		return
 	}
 	if flag.NArg() == 0 && !*flagAdd {
-		k.showAll()
+		usage()
 		return
 	}
 	if flag.NArg() != 1 {
@@ -130,69 +126,41 @@ func main() {
 }
 
 type Keychain struct {
-	file string
-	data []byte
 	keys map[string]Key
 }
 
 type Key struct {
-	raw    []byte
-	digits int
-	offset int // offset of counter
+	account string
+	raw     []byte
+	digits  int
 }
 
-const counterLen = 20
+const keychainServiceName = "2fa-macOS"
 
-func readKeychain(file string) *Keychain {
-	c := &Keychain{
-		file: file,
-		keys: make(map[string]Key),
-	}
-	data, err := ioutil.ReadFile(file)
+func readKeychain() *Keychain {
+
+	query := keychain.NewItem()
+	query.SetSecClass(keychain.SecClassGenericPassword)
+	query.SetService(keychainServiceName)
+	query.SetAccessGroup(keychainServiceName)
+	query.SetMatchLimit(keychain.MatchLimitAll)
+	query.SetReturnAttributes(true)
+	results, err := keychain.QueryItem(query)
+
 	if err != nil {
-		if os.IsNotExist(err) {
-			return c
-		}
 		log.Fatal(err)
 	}
-	c.data = data
 
-	lines := bytes.SplitAfter(data, []byte("\n"))
-	offset := 0
-	for i, line := range lines {
-		lineno := i + 1
-		offset += len(line)
-		f := bytes.Split(bytes.TrimSuffix(line, []byte("\n")), []byte(" "))
-		if len(f) == 1 && len(f[0]) == 0 {
-			continue
-		}
-		if len(f) >= 3 && len(f[1]) == 1 && '6' <= f[1][0] && f[1][0] <= '8' {
-			var k Key
-			name := string(f[0])
-			k.digits = int(f[1][0] - '0')
-			raw, err := decodeKey(string(f[2]))
-			if err == nil {
-				k.raw = raw
-				if len(f) == 3 {
-					c.keys[name] = k
-					continue
-				}
-				if len(f) == 4 && len(f[3]) == counterLen {
-					_, err := strconv.ParseUint(string(f[3]), 10, 64)
-					if err == nil {
-						// Valid counter.
-						k.offset = offset - counterLen
-						if line[len(line)-1] == '\n' {
-							k.offset--
-						}
-						c.keys[name] = k
-						continue
-					}
-				}
-			}
-		}
-		log.Printf("%s:%d: malformed key", c.file, lineno)
+	c := &Keychain{
+		keys: make(map[string]Key),
 	}
+
+	for _, r := range results {
+		var k Key
+		k.account = r.Account
+		c.keys[k.account] = k
+	}
+
 	return c
 }
 
@@ -229,21 +197,20 @@ func (c *Keychain) add(name string) {
 	}
 
 	line := fmt.Sprintf("%s %d %s", name, size, text)
-	if *flagHotp {
-		line += " " + strings.Repeat("0", 20)
-	}
-	line += "\n"
 
-	f, err := os.OpenFile(c.file, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0600)
+	label := fmt.Sprintf("%s - %s", keychainServiceName, name)
+
+	item := keychain.NewGenericPassword(
+		keychainServiceName,
+		name,
+		label,
+		[]byte(line),
+		keychainServiceName)
+
+	item.SetSynchronizable(keychain.SynchronizableNo)
+	item.SetAccessible(keychain.AccessibleWhenUnlocked)
+	err = keychain.AddItem(item)
 	if err != nil {
-		log.Fatalf("opening keychain: %v", err)
-	}
-	f.Chmod(0600)
-
-	if _, err := f.Write([]byte(line)); err != nil {
-		log.Fatalf("adding key: %v", err)
-	}
-	if err := f.Close(); err != nil {
 		log.Fatalf("adding key: %v", err)
 	}
 }
@@ -254,56 +221,41 @@ func (c *Keychain) code(name string) string {
 		log.Fatalf("no such key %q", name)
 	}
 	var code int
-	if k.offset != 0 {
-		n, err := strconv.ParseUint(string(c.data[k.offset:k.offset+counterLen]), 10, 64)
-		if err != nil {
-			log.Fatalf("malformed key counter for %q (%q)", name, c.data[k.offset:k.offset+counterLen])
-		}
-		n++
-		code = hotp(k.raw, n, k.digits)
-		f, err := os.OpenFile(c.file, os.O_RDWR, 0600)
-		if err != nil {
-			log.Fatalf("opening keychain: %v", err)
-		}
-		if _, err := f.WriteAt([]byte(fmt.Sprintf("%0*d", counterLen, n)), int64(k.offset)); err != nil {
-			log.Fatalf("updating keychain: %v", err)
-		}
-		if err := f.Close(); err != nil {
-			log.Fatalf("updating keychain: %v", err)
-		}
-	} else {
-		// Time-based key.
-		code = totp(k.raw, time.Now(), k.digits)
-	}
+	code = totp(k.raw, time.Now(), k.digits)
 	return fmt.Sprintf("%0*d", k.digits, code)
 }
 
 func (c *Keychain) show(name string) {
-	fmt.Printf("%s\n", c.code(name))
-}
+	if c.keys[name].raw == nil {
+		query := keychain.NewItem()
+		query.SetSecClass(keychain.SecClassGenericPassword)
+		query.SetService(keychainServiceName)
+		query.SetAccount(name)
+		query.SetAccessGroup(keychainServiceName)
+		query.SetMatchLimit(keychain.MatchLimitOne)
+		query.SetReturnData(true)
+		results, err := keychain.QueryItem(query)
+		if err != nil {
+			log.Fatalln("keychain query err:", err)
+		} else if len(results) != 1 {
+			log.Fatalln("keychain query not found:", err)
+		} else {
+			data := string(results[0].Data)
+			datas := strings.Split(data, " ")
 
-func (c *Keychain) showAll() {
-	var names []string
-	max := 0
-	maxDigits := 0
-	for name, k := range c.keys {
-		names = append(names, name)
-		if max < len(name) {
-			max = len(name)
-		}
-		if max < k.digits {
-			max = k.digits
+			key := Key{}
+			key.account = name
+			key.digits = int(datas[1][0] - '0')
+
+			raw, err := decodeKey(string(datas[2]))
+			if err != nil {
+				log.Fatalln("keychain query err:", err)
+			}
+			key.raw = raw
+			c.keys[name] = key
 		}
 	}
-	sort.Strings(names)
-	for _, name := range names {
-		k := c.keys[name]
-		code := strings.Repeat("-", k.digits)
-		if k.offset == 0 {
-			code = c.code(name)
-		}
-		fmt.Printf("%-*s\t%s\n", maxDigits, code, name)
-	}
+	fmt.Printf("%s\n", c.code(name))
 }
 
 func decodeKey(key string) ([]byte, error) {
