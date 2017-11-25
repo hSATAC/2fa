@@ -22,13 +22,8 @@ secret manually, or by taking a screenshot of the qrcode.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Basic check
-		if takeScreenshot && len(args) > 0 {
-			fmt.Println("You can't specify account name when using screenshot.")
-			os.Exit(1)
-		}
-
 		if !takeScreenshot && len(args) == 0 {
-			fmt.Println("You have to enter an account name.")
+			cmd.Help()
 			os.Exit(1)
 		}
 
@@ -50,8 +45,6 @@ secret manually, or by taking a screenshot of the qrcode.`,
 			// Scan screenshot
 			account, key = screenshot.ReadQRCode(file.Name())
 		} else {
-			account := args[0]
-
 			fmt.Fprintf(os.Stderr, "2fa key for %s: ", account)
 			key, err := bufio.NewReader(os.Stdin).ReadString('\n')
 
@@ -59,6 +52,10 @@ secret manually, or by taking a screenshot of the qrcode.`,
 				log.Fatalf("error reading account: %v", err)
 			}
 			key = key[:len(key)-1] // chop \n
+		}
+
+		if len(args) == 1 {
+			account = args[0]
 		}
 
 		keychain.Add(account, key)
