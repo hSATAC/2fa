@@ -31,7 +31,7 @@ func List() {
 	if len(results) > 0 {
 		fmt.Println("You have following accounts:")
 		for _, r := range results {
-			fmt.Println("  -",r.Account)
+			fmt.Println("  -", r.Account)
 		}
 	} else {
 		fmt.Println("Run `2fa add` to add acconut.")
