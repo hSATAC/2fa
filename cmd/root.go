@@ -11,7 +11,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "2fa",
 	Short: "2fa is a command line TOTP manager.",
-	Long: `2fa is a command line TOTP manager utilizing macOS keychain.`,
+	Long:  `2fa is a command line TOTP manager utilizing macOS keychain.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -23,6 +23,6 @@ func Execute() {
 	}
 }
 
-func init() { 
+func init() {
 	//cobra.OnInitialize(initConfig)
 }

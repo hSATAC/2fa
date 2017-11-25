@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"github.com/hSATAC/2fa/keychain"
+	"github.com/spf13/cobra"
 )
 
 // showCmd represents the show command
@@ -32,7 +32,10 @@ This is for displaying code in 6-8 digits:
 
 func init() {
 	showCmd.SetUsageTemplate(`Usage:
-  2fa show [account]
+  2fa show [account]{{if .HasAvailableLocalFlags}}
+
+Flags:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}
   `)
 	rootCmd.AddCommand(showCmd)
 }

@@ -8,6 +8,7 @@ Usage:
     go get -u github.com/hSATAC/2fa
 
     2fa add [account]
+    2fa add --screenshot
     2fa list
     2fa show [account]
 
@@ -15,6 +16,8 @@ Usage:
 prints a prompt to standard error and reads a two-factor key from standard
 input. Two-factor keys are short case-insensitive strings of letters A-Z and
 digits 2-7.
+
+`2fa add --screenshot` adds a new key by taking a screenshot of the qrcode.
 
 The new key generates time-based (TOTP) authentication codes.
 
@@ -47,3 +50,10 @@ Then whenever GitHub prompts for a 2FA code, run 2fa to obtain one:
 
 The display format indicates the 2FA code in 6-8 digits, choose the right
 length for your service.
+
+## Requirement
+
+Screenshot QRCode scanner requires [zbar](https://github.com/ZBar/ZBar) to run,
+Please install zbar.
+
+`$ brew install zbar`
