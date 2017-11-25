@@ -18,6 +18,7 @@ input. Two-factor keys are short case-insensitive strings of letters A-Z and
 digits 2-7.
 
 `2fa add --screenshot` adds a new key by taking a screenshot of the qrcode.
+See it in action here: [(gif)](http://ash.cat/5fMaVA).
 
 The new key generates time-based (TOTP) authentication codes.
 
