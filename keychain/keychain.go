@@ -1,16 +1,14 @@
 package keychain
 
 import (
-	"crypto/hmac"
-	"crypto/sha1"
 	"encoding/base32"
-	"encoding/binary"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/keybase/go-keychain"
+	otp "github.com/pquerna/otp/totp"
 )
 
 const keychainServiceName = "2fa-macOS"
@@ -54,10 +52,6 @@ func Show(account string) {
 	}
 	code := code(results[0].Data)
 
-	// display like: 1 2 345678
-	// for 6~8 digits code
-	code = code[:2] + " " + code[2:]
-	code = code[:1] + " " + code[1:]
 	fmt.Printf("%s\n", code)
 }
 
@@ -87,24 +81,7 @@ func decodeKey(key string) ([]byte, error) {
 	return base32.StdEncoding.DecodeString(strings.ToUpper(key))
 }
 
-func hotp(key []byte, counter uint64, digits int) int {
-	h := hmac.New(sha1.New, key)
-	binary.Write(h, binary.BigEndian, counter)
-	sum := h.Sum(nil)
-	v := binary.BigEndian.Uint32(sum[sum[len(sum)-1]&0x0F:]) & 0x7FFFFFFF
-	d := uint32(1)
-	for i := 0; i < digits && i < 8; i++ {
-		d *= 10
-	}
-	return int(v % d)
-}
-
-func totp(key []byte, t time.Time, digits int) int {
-	return hotp(key, uint64(t.UnixNano())/30e9, digits)
-}
-
 func code(key []byte) string {
-	var code int
-	code = totp(key, time.Now(), 8)
-	return fmt.Sprintf("%0*d", 8, code)
+	code, _ := otp.GenerateCode(string(key), time.Now())
+	return code
 }
