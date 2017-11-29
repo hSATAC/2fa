@@ -12,7 +12,7 @@ import (
 
 const keychainServiceName = "2fa-macOS"
 
-func List() {
+func List() (res []string) {
 	query := macKeychain.NewItem()
 	query.SetSecClass(macKeychain.SecClassGenericPassword)
 	query.SetService(keychainServiceName)
@@ -25,14 +25,11 @@ func List() {
 		log.Fatal(err)
 	}
 
-	if len(results) > 0 {
-		fmt.Println("You have following accounts:")
-		for _, r := range results {
-			fmt.Println("  -", r.Account)
-		}
-	} else {
-		fmt.Println("Run `2fa add` to add acconut.")
+	for _, r := range results {
+		res = append(res, r.Account)
 	}
+
+	return res
 }
 
 func Show(account string) {
