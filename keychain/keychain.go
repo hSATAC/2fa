@@ -1,26 +1,25 @@
 package keychain
 
 import (
-	"encoding/base32"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
-	"github.com/keybase/go-keychain"
-	otp "github.com/pquerna/otp/totp"
+	macKeychain "github.com/keybase/go-keychain"
+	"github.com/pquerna/otp"
+	otpTotp "github.com/pquerna/otp/totp"
 )
 
 const keychainServiceName = "2fa-macOS"
 
 func List() {
-	query := keychain.NewItem()
-	query.SetSecClass(keychain.SecClassGenericPassword)
+	query := macKeychain.NewItem()
+	query.SetSecClass(macKeychain.SecClassGenericPassword)
 	query.SetService(keychainServiceName)
 	query.SetAccessGroup(keychainServiceName)
-	query.SetMatchLimit(keychain.MatchLimitAll)
+	query.SetMatchLimit(macKeychain.MatchLimitAll)
 	query.SetReturnAttributes(true)
-	results, err := keychain.QueryItem(query)
+	results, err := macKeychain.QueryItem(query)
 
 	if err != nil {
 		log.Fatal(err)
@@ -37,14 +36,14 @@ func List() {
 }
 
 func Show(account string) {
-	query := keychain.NewItem()
-	query.SetSecClass(keychain.SecClassGenericPassword)
+	query := macKeychain.NewItem()
+	query.SetSecClass(macKeychain.SecClassGenericPassword)
 	query.SetService(keychainServiceName)
 	query.SetAccount(account)
 	query.SetAccessGroup(keychainServiceName)
-	query.SetMatchLimit(keychain.MatchLimitOne)
+	query.SetMatchLimit(macKeychain.MatchLimitOne)
 	query.SetReturnData(true)
-	results, err := keychain.QueryItem(query)
+	results, err := macKeychain.QueryItem(query)
 	if err != nil {
 		log.Fatalln("keychain query err:", err)
 	} else if len(results) != 1 {
@@ -55,33 +54,44 @@ func Show(account string) {
 	fmt.Printf("%s\n", code)
 }
 
-func Add(account string, key string) {
-	if _, err := decodeKey(key); err != nil {
-		log.Fatalf("invalid key: %v", err)
+func AddByURLString(urlString string) error {
+	// check if it's valid url
+	key, err := otp.NewKeyFromURL(urlString)
+	if err != nil {
+		return fmt.Errorf("add OTP URL to keychain error: %v", err)
 	}
+
+	account := AccountOfKey(key)
 
 	label := fmt.Sprintf("%s - %s", keychainServiceName, account)
 
-	item := keychain.NewGenericPassword(
+	item := macKeychain.NewGenericPassword(
 		keychainServiceName,
 		account,
 		label,
-		[]byte(key),
+		[]byte(urlString),
 		keychainServiceName)
 
-	item.SetSynchronizable(keychain.SynchronizableNo)
-	item.SetAccessible(keychain.AccessibleWhenUnlocked)
-	err := keychain.AddItem(item)
+	item.SetSynchronizable(macKeychain.SynchronizableNo)
+	item.SetAccessible(macKeychain.AccessibleWhenUnlocked)
+	err = macKeychain.AddItem(item)
 	if err != nil {
 		log.Fatalf("adding key: %v", err)
 	}
+	return nil
 }
 
-func decodeKey(key string) ([]byte, error) {
-	return base32.StdEncoding.DecodeString(strings.ToUpper(key))
+func AccountOfKey(key *otp.Key) string {
+	issuer := key.Issuer()
+	account := key.AccountName()
+	if issuer == "" {
+		return account
+	} else {
+		return fmt.Sprintf("%s - %s", issuer, account)
+	}
 }
 
 func code(key []byte) string {
-	code, _ := otp.GenerateCode(string(key), time.Now())
+	code, _ := otpTotp.GenerateCode(string(key), time.Now())
 	return code
 }
