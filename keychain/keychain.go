@@ -32,7 +32,7 @@ func List() (res []string) {
 	return res
 }
 
-func Show(account string) {
+func Get(account string) (otpURL string) {
 	query := macKeychain.NewItem()
 	query.SetSecClass(macKeychain.SecClassGenericPassword)
 	query.SetService(keychainServiceName)
@@ -46,9 +46,8 @@ func Show(account string) {
 	} else if len(results) != 1 {
 		log.Fatalln("keychain query not found:", err)
 	}
-	code := code(results[0].Data)
+	return string(results[0].Data)
 
-	fmt.Printf("%s\n", code)
 }
 
 func AddByURLString(urlString string) error {

@@ -36,8 +36,7 @@ to add an account.`,
 			os.Exit(0)
 		}
 
-		keychain.Show(account)
-
+		display(account)
 	},
 }
 
