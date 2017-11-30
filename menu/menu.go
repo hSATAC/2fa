@@ -192,7 +192,7 @@ func (m *Menu) RunInternal() (results []string, escape bool) {
 	m.Render()
 
 	for {
-		ascii, keyCode, err := getChar()
+		ascii, keyCode, err := GetChar()
 
 		if (ascii == 3 || ascii == 27) || err != nil {
 			fmt.Println()
@@ -271,7 +271,7 @@ func GetText(message string, defaultText string) string {
 }
 
 // Returns either an ascii code, or (if input is an arrow) a Javascript key code.
-func getChar() (ascii int, keyCode int, err error) {
+func GetChar() (ascii int, keyCode int, err error) {
 	t, _ := term.Open("/dev/tty")
 	term.RawMode(t)
 	bytes := make([]byte, 3)

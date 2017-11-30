@@ -40,17 +40,17 @@ click the “enter this text code instead” link. A window pops up showing
 Add it to 2fa under the name github, typing the secret at the prompt:
 
     $ 2fa add github
-    2fa key for github: nzxxiidbebvwk6jb
+    2fa key for github: JBSWY3DPEHPK3PXP
     $
 
 Then whenever GitHub prompts for a 2FA code, run 2fa to obtain one:
 
     $ 2fa show github
-    8 3 473611
-    $
+          [14]  899393
 
-The display format indicates the 2FA code in 6-8 digits, choose the right
-length for your service.
+The first 2 digits is the countdown of the TOTP.
+
+Press any key to copy the code and exit.
 
 ## Requirement
 

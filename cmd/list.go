@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/hSATAC/2fa/keychain"
-	"github.com/spf13/cobra"
-	"github.com/hSATAC/2fa/menu"
 	"fmt"
 	"os"
+
+	"github.com/hSATAC/2fa/keychain"
+	"github.com/hSATAC/2fa/menu"
+	"github.com/spf13/cobra"
 )
 
 // listCmd represents the list command
@@ -14,11 +15,8 @@ var listCmd = &cobra.Command{
 	Short: "List all the account names",
 	Long: `List all the account names.
 
-If you haven't add any accounts, run:
-
-2fa add
-
-to add an account.`,
+Select the account using [up] and [down],
+press [Enter] to display the TOTP and the countdown.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		accounts := keychain.List()
 		if len(accounts) == 0 {
