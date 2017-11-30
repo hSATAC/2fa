@@ -3,6 +3,8 @@ utilizing the macOS keychain to protect your TOTP secrets.
 
 2fa was forked from [rsc/2fa](https://github.com/rsc/2fa) and rewrote.
 
+![image](https://github.com/hSATAC/2fa/raw/master/readme.gif)
+
 Usage:
 
     go get -u github.com/hSATAC/2fa
