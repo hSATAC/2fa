@@ -35,6 +35,8 @@ secret manually, or by taking a screenshot of the qrcode.`,
 		var otpURL string
 		var otpKey *otp.Key
 		if takeScreenshot {
+			fmt.Println("Screenshot disabled.")
+			os.Exit(1)
 			fmt.Println("Please take a screenshot of the qrcode...")
 			file, err := ioutil.TempFile(os.TempDir(), "2fa")
 			if err != nil {
